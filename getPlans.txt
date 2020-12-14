@@ -1,0 +1,33 @@
+public Page<PlanDto> getPlansForMember(int id, Integer pageNo, Integer pageSize) {
+		Pageable paging = PageRequest.of(pageNo, pageSize);
+		
+		// enrollments for particular user
+		List<Enrollment> enrollmentList = enrollmentRepository.findByUserId(id);
+		
+		if (!enrollmentList.isEmpty()) {
+			//checking if user has enrolled for plans not having completed or rejected status
+			if (enrollmentList.stream().anyMatch(e -> e.getStatus().equals(StatusType.APPROVED)
+					|| e.getStatus().equals(StatusType.WAITING) || e.getStatus().equals(StatusType.PENDING))) {
+				
+				//extracting plan list by getting plan id from enrollnment list
+				List<Plan> userEnrolledPlans = planRepository.findAllById(
+						enrollmentList.stream().map(e -> e.getPlan().getId()).collect(Collectors.toList()));
+
+				
+				List<Plan> plans = planRepository.findAll();
+
+				//removing list of plans which user has already enrolled
+				plans.removeAll(userEnrolledPlans);
+				Page<Plan> pagePlan = new PageImpl<>(plans);
+				Page<PlanDto> planDtoList = ModelMapperConfig.mapEntityPageIntoDtoPage(pagePlan, PlanDto.class);
+				return planDtoList;
+			}
+		}
+		
+		//if user has no enrollments, return full plan list
+		Page<Plan> planList = planRepository.findAll(paging);
+		Page<PlanDto> planDtoList = ModelMapperConfig.mapEntityPageIntoDtoPage(planList, PlanDto.class);
+
+		return planDtoList;
+
+	}
